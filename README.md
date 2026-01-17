@@ -1,234 +1,213 @@
+# Task Management System with AI Assistance
 
+## Overview
 
-#  Task Management System – Backend (NestJS + MongoDB + AI)
+This project is a full-stack **Task Management System** that allows users to create, manage, and track tasks through predefined states.
+It also includes an **AI-powered command assistant** that understands natural language commands such as:
 
-This repository contains the **backend implementation** of a Task Management System that supports both **manual task operations** and **natural-language task commands via an AI assistant**.
+* Add a task
+* Start working on a task
+* Mark a task as completed
+* Show all completed / in-progress / not-started tasks
 
-The system is designed with a strong focus on:
-
-* Clear separation of concerns
-* Centralized business logic
-* Predictable task state transitions
-* Safe and controlled AI integration
-
----
-
-##  Core Features
-
-* Create, view, update, and delete tasks
-* Enforce strict task state transitions
-* Filter tasks by their current state
-* Accept natural-language commands through an AI interface
-* Ensure AI never bypasses validation or business rules
+The system is designed with a clear separation of concerns between frontend and backend, with all business logic and validation handled on the backend.
 
 ---
 
-##  Task Model & State Design
+## Tech Stack
 
-Each task contains the following fields:
+### Backend
 
-| Field | Type   | Description            |
-| ----- | ------ | ---------------------- |
-| id    | string | Unique task identifier |
-| title | string | Task title             |
-| state | enum   | Current task state     |
+* **NestJS** (Node.js framework)
+* **MongoDB** with **Mongoose**
+* **Google Gemini API** (AI command interpretation)
 
-### Allowed Task States (Mandatory)
+### Frontend
 
-The system uses **exactly** the following task states:
-
-1. **Not Started**
-2. **In Progress**
-3. **Completed**
-
-These states are defined using a centralized enum.
+* **React** (Vite + TypeScript)
+* **Tailwind CSS**
+* **Fetch API** for backend communication
 
 ---
 
-##  State Transition Rules
-
-Task state transitions are **strictly controlled** and enforced only in the service layer.
-
-### Valid transitions:
-
-* `Not Started → In Progress`
-* `In Progress → Completed`
-
-### Invalid transitions:
-
-* Skipping states (e.g., `Not Started → Completed`)
-* Reverting states (e.g., `Completed → In Progress`)
-
-Any invalid transition is **gracefully rejected** with a clear error message.
-
-> State transition logic is **never implemented** in the UI or AI code.
-
----
-
-##  AI Integration Design
-
-### Purpose of AI
-
-AI is used **only as an input and intent-interpretation layer**.
-
-It does **not**:
-
-* Directly access the database
-* Contain business logic
-* Perform state transitions
-* Bypass validations
-
-All AI-derived actions pass through the **same service methods** as manual API requests.
-
----
-
-### How AI Commands Are Processed
-
-1. User sends a natural-language command
-   Example:
-
-   * “Add a task to prepare presentation”
-   * “Show all completed tasks”
-
-2. The AI layer interprets the intent and converts it into a **structured action**
-
-3. The structured action is validated and executed using existing business logic
-
-4. The response is returned as a status message and/or result
-
----
-
-### Supported AI Actions
-
-| Action            | Description                   |
-| ----------------- | ----------------------------- |
-| CREATE_TASK       | Create a new task             |
-| UPDATE_TASK_STATE | Move task to next valid state |
-| SHOW_TASKS        | View all or filtered tasks    |
-
----
-
-### Handling Ambiguous or Invalid Commands
-
-* If no task matches → error is returned
-* If multiple tasks match → user is asked to be more specific
-* If command intent is unclear → AI gracefully rejects the request
-
----
-
-##  AI Model
-
-* **Google Gemini API**
-* Used only for intent interpretation
-* API key is stored securely using environment variables
-
-> The backend remains fully functional even if the AI module is removed.
-
----
-
-##  Database Choice
-
-### Database Used: **MongoDB**
-
-**Reasoning:**
-
-* Flexible schema for rapid iteration
-* Natural fit for document-based task storage
-* Easy integration with NestJS using Mongoose
-
-### Collections
-
-* `tasks` – stores task documents
-* No AI-specific data is stored in the database
-
----
-
-##  Architecture Overview
+## High-Level Architecture
 
 ```
-Controller → Service → Database
-             ↑
-            AI
+Frontend (React)
+   |
+   |  REST API (HTTP / JSON)
+   |
+Backend (NestJS)
+   |
+   |  Mongoose ODM
+   |
+MongoDB
 ```
 
-* Controllers handle HTTP requests
-* Services contain all business logic
-* AI only generates structured commands
-* Database access is isolated to services
+### Architecture Highlights
+
+* Frontend handles UI rendering and user interactions only
+* Backend enforces all rules related to task state transitions
+* AI logic lives entirely on the backend
+* Frontend never directly modifies task state logic
 
 ---
 
-##  Authentication
+## Task State Design
 
-Basic authentication support is designed to be easily added if required.
-For this task, authentication is kept minimal to focus on core system behavior.
+Each task follows a strict state machine implemented on the backend.
+
+### Task States
+
+* **NOT_STARTED**
+* **IN_PROGRESS**
+* **COMPLETED**
+
+### Allowed Transitions
+
+| From        | To          |
+| ----------- | ----------- |
+| NOT_STARTED | IN_PROGRESS |
+| IN_PROGRESS | COMPLETED   |
+
+Invalid transitions are rejected at the backend level.
+
+### Why This Design
+
+* Prevents inconsistent task states
+* Keeps business rules centralized
+* Makes the system predictable and scalable
 
 ---
 
-##  Running the Backend Locally
+## Backend Design
 
-### Prerequisites
+### Core Modules
 
-* Node.js (v18+ recommended)
-* MongoDB (local or cloud)
+* `TasksModule` – Task CRUD and state management
+* `AiModule` – AI command interpretation and execution
+* `DatabaseModule` – MongoDB connection
 
-### Setup
+### Task Handling
+
+* Tasks are stored in MongoDB
+* All state changes are validated in `TasksService`
+* Invalid state changes return proper HTTP errors
+
+### API Endpoints
+
+* `POST /tasks` – Create task
+* `GET /tasks` – Fetch all tasks
+* `GET /tasks?state=COMPLETED` – Fetch filtered tasks
+* `PATCH /tasks/:id/state` – Update task state
+* `DELETE /tasks/:id` – Delete task
+* `POST /ai/command` – Execute AI command
+
+---
+
+## AI Integration Approach
+
+### AI Flow
+
+1. User enters a natural language command in the UI
+2. Frontend sends the command to `/ai/command`
+3. Backend interprets intent using:
+
+   * Rule-based parsing (deterministic)
+   * Optional Gemini API for advanced interpretation
+4. Backend maps intent to a concrete action:
+
+   * CREATE_TASK
+   * UPDATE_TASK_STATE
+   * SHOW_TASKS
+5. Action is executed using existing task services
+6. Result is returned to the frontend
+
+### Why AI Is Backend-Driven
+
+* Prevents frontend manipulation
+* Ensures consistent behavior
+* Keeps AI logic secure and testable
+
+---
+
+## Frontend Design
+
+### Key Features
+
+* Task list with filters (All / Not Started / In Progress / Completed)
+* Add, update, and delete tasks
+* AI command input with execution feedback
+* Real-time UI updates after AI actions
+
+### Frontend Responsibilities
+
+* Render task data received from backend
+* Trigger API calls
+* Update UI state based on backend responses
+
+### AI Command UI Behavior
+
+* AI commands do not directly modify UI
+* Backend returns task data or messages
+* Frontend updates task list accordingly
+
+---
+
+## Key Design Decisions
+
+### 1. Backend-First Validation
+
+All task rules are enforced on the backend to prevent invalid states.
+
+### 2. Deterministic AI Commands
+
+AI commands are converted into structured actions instead of free-form execution.
+
+### 3. Stateless Frontend
+
+Frontend does not store business rules or task logic.
+
+### 4. Clear Separation of Concerns
+
+Each layer (UI, API, DB, AI) has a single responsibility.
+
+---
+
+## How to Run the Project
+
+### Backend
 
 ```bash
+cd backend
 npm install
-```
-
-Create a `.env` file:
-
-```env
-MONGO_URI=mongodb://localhost:27017/task-management
-GEMINI_API_KEY=your_api_key_here
-```
-
-### Start the server
-
-```bash
 npm run start:dev
 ```
 
-The backend runs on:
+### Frontend
 
+```bash
+cd frontend
+npm install
+npm run dev
 ```
-http://localhost:3000
-```
+
+Backend runs on `http://localhost:3000`
+Frontend runs on `http://localhost:8080`
 
 ---
 
-## 🔗 Frontend Repository
+## Conclusion
 
-The frontend for this project is maintained separately:
+This project demonstrates:
 
- **Frontend Repository:**
-[https://github.com/Raphael583/Task-Management-Frontend](https://github.com/Raphael583/Task-Management-Frontend)
+* Clean backend architecture with enforced business rules
+* Structured task state management
+* Practical AI integration for real-world usage
+* A responsive frontend consuming backend-driven logic
 
----
-
-##  Key Design Decisions
-
-* Business logic is centralized and reusable
-* AI is treated as an untrusted input layer
-* State transitions are deterministic and enforced
-* Clear separation between data, logic, and AI
-* System remains functional without AI
+The system is designed to be scalable, maintainable, and secure while showcasing intelligent task automation.
 
 ---
 
-##  Submission Notes
-
-* `node_modules` and `.env` are excluded from the repository
-* AI usage is transparent and controlled
-* Code is structured for clarity and maintainability
-
----
-
-##  Author
-
-**Raphael A.**
-M.Sc. Computer Science
-Loyola College, Madras University
-
+Just tell me what you want next.
