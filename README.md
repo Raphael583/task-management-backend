@@ -1,98 +1,234 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+#  Task Management System – Backend (NestJS + MongoDB + AI)
 
-## Description
+This repository contains the **backend implementation** of a Task Management System that supports both **manual task operations** and **natural-language task commands via an AI assistant**.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+The system is designed with a strong focus on:
 
-## Project setup
+* Clear separation of concerns
+* Centralized business logic
+* Predictable task state transitions
+* Safe and controlled AI integration
 
-```bash
-$ npm install
+---
+
+##  Core Features
+
+* Create, view, update, and delete tasks
+* Enforce strict task state transitions
+* Filter tasks by their current state
+* Accept natural-language commands through an AI interface
+* Ensure AI never bypasses validation or business rules
+
+---
+
+##  Task Model & State Design
+
+Each task contains the following fields:
+
+| Field | Type   | Description            |
+| ----- | ------ | ---------------------- |
+| id    | string | Unique task identifier |
+| title | string | Task title             |
+| state | enum   | Current task state     |
+
+### Allowed Task States (Mandatory)
+
+The system uses **exactly** the following task states:
+
+1. **Not Started**
+2. **In Progress**
+3. **Completed**
+
+These states are defined using a centralized enum.
+
+---
+
+##  State Transition Rules
+
+Task state transitions are **strictly controlled** and enforced only in the service layer.
+
+### Valid transitions:
+
+* `Not Started → In Progress`
+* `In Progress → Completed`
+
+### Invalid transitions:
+
+* Skipping states (e.g., `Not Started → Completed`)
+* Reverting states (e.g., `Completed → In Progress`)
+
+Any invalid transition is **gracefully rejected** with a clear error message.
+
+> State transition logic is **never implemented** in the UI or AI code.
+
+---
+
+##  AI Integration Design
+
+### Purpose of AI
+
+AI is used **only as an input and intent-interpretation layer**.
+
+It does **not**:
+
+* Directly access the database
+* Contain business logic
+* Perform state transitions
+* Bypass validations
+
+All AI-derived actions pass through the **same service methods** as manual API requests.
+
+---
+
+### How AI Commands Are Processed
+
+1. User sends a natural-language command
+   Example:
+
+   * “Add a task to prepare presentation”
+   * “Show all completed tasks”
+
+2. The AI layer interprets the intent and converts it into a **structured action**
+
+3. The structured action is validated and executed using existing business logic
+
+4. The response is returned as a status message and/or result
+
+---
+
+### Supported AI Actions
+
+| Action            | Description                   |
+| ----------------- | ----------------------------- |
+| CREATE_TASK       | Create a new task             |
+| UPDATE_TASK_STATE | Move task to next valid state |
+| SHOW_TASKS        | View all or filtered tasks    |
+
+---
+
+### Handling Ambiguous or Invalid Commands
+
+* If no task matches → error is returned
+* If multiple tasks match → user is asked to be more specific
+* If command intent is unclear → AI gracefully rejects the request
+
+---
+
+##  AI Model
+
+* **Google Gemini API**
+* Used only for intent interpretation
+* API key is stored securely using environment variables
+
+> The backend remains fully functional even if the AI module is removed.
+
+---
+
+##  Database Choice
+
+### Database Used: **MongoDB**
+
+**Reasoning:**
+
+* Flexible schema for rapid iteration
+* Natural fit for document-based task storage
+* Easy integration with NestJS using Mongoose
+
+### Collections
+
+* `tasks` – stores task documents
+* No AI-specific data is stored in the database
+
+---
+
+##  Architecture Overview
+
+```
+Controller → Service → Database
+             ↑
+            AI
 ```
 
-## Compile and run the project
+* Controllers handle HTTP requests
+* Services contain all business logic
+* AI only generates structured commands
+* Database access is isolated to services
+
+---
+
+##  Authentication
+
+Basic authentication support is designed to be easily added if required.
+For this task, authentication is kept minimal to focus on core system behavior.
+
+---
+
+##  Running the Backend Locally
+
+### Prerequisites
+
+* Node.js (v18+ recommended)
+* MongoDB (local or cloud)
+
+### Setup
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+Create a `.env` file:
+
+```env
+MONGO_URI=mongodb://localhost:27017/task-management
+GEMINI_API_KEY=your_api_key_here
+```
+
+### Start the server
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run start:dev
 ```
 
-## Deployment
+The backend runs on:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```
+http://localhost:3000
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## 🔗 Frontend Repository
 
-Check out a few resources that may come in handy when working with NestJS:
+The frontend for this project is maintained separately:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+ **Frontend Repository:**
+[https://github.com/Raphael583/Task-Management-Frontend](https://github.com/Raphael583/Task-Management-Frontend)
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+##  Key Design Decisions
 
-## Stay in touch
+* Business logic is centralized and reusable
+* AI is treated as an untrusted input layer
+* State transitions are deterministic and enforced
+* Clear separation between data, logic, and AI
+* System remains functional without AI
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
-## License
+##  Submission Notes
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+* `node_modules` and `.env` are excluded from the repository
+* AI usage is transparent and controlled
+* Code is structured for clarity and maintainability
+
+---
+
+##  Author
+
+**Raphael A.**
+M.Sc. Computer Science
+Loyola College, Madras University
+
