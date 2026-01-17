@@ -16,7 +16,10 @@ export class TasksService {
   }
 
   async findAll(state?: TaskState) {
-    return this.taskModel.find(state ? { state } : {});
+    if(state){
+      return this.taskModel.find({state}).exec();
+    }
+    return this.taskModel.find().exec();
   }
 
   async updateState(taskId: string, newState: TaskState) {
